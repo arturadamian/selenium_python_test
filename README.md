@@ -14,7 +14,7 @@ git clone git@github.com:our-quest/ck12.git
 ```
 If not, run:
 ```sh
-git clone https://github.com/our-quest/ck12.git
+https://github.com/arturadamian/selenium_python_ck12.git
 ```
 and then enter your GitHub email and password
 ******************************************************************
@@ -59,7 +59,7 @@ pip install -r requirements.txt
 File **.vscode/settings.json** contains
 ```js
 "terminal.integrated.env.osx": {
-    "PYTHONPATH": "${workspaceFolder}"
+    "PYTHONPATH": "${workspaceFolder}/src"
 }
 ```
 > Note:
@@ -67,7 +67,7 @@ File **.vscode/settings.json** contains
 > If you are on Windows replace it with
 ```js
 "terminal.integrated.env.windows": {
-    "PYTHONPATH": "${workspaceFolder}"
+    "PYTHONPATH": "${workspaceFolder}/src"
 }
 ```
 > Note:
