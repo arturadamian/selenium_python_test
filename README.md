@@ -10,7 +10,7 @@
 If you set up SSH (instructions in the section **GitHub** below),
 then run:
 ```sh
-git clone git@github.com:our-quest/ck12.git
+git@github.com:arturadamian/selenium_python_ck12.git
 ```
 If not, run:
 ```sh
