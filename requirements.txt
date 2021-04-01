@@ -1,0 +1,7 @@
+pytest==6.2.2
+pytest-metadata==1.11.0
+pytest-xdist==2.2.0
+requests==2.25.1
+selenium==3.141.0
+webdriver-manager==3.3.0
+
