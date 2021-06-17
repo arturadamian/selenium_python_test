@@ -1,4 +1,4 @@
-# CK12
+# Pytest
 
 ## _Web Automation Project With Pythton and Selenium_
 - CK-12 Foundation is a non-profit organization dedicated to increasing access to high quality educational materials for K-12 students all over the world
