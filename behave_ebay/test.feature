@@ -29,43 +29,54 @@ Feature: eBay Regression Testing
       | Antiques | Lamp   |
       | Books    | Python |
 
+
   Scenario Outline: Search specific items on auction and save pictures of them in a created directory
-    Given Directory to create
+    Given Save directory to create, "<item>"
       """
       screenshots
       """
     When Type "<item>" in the search field
     And Press search button
-    Then Verify "<item>" search
+    Then Verify correct search
     When Sort listings by central left "<option>"
     And Filter items: "<price_max>", "<price_min>", "<ship_price_max>", "<bidding_min_days_left>"
-    Then Create/cleanup the directory for screenshots
+    Then Create/cleanup a directory for saving files in project root
     Then Open items in a new tab and save screenshots in the directory
-
 
     Examples:
       | item        | price_max | price_min | ship_price_max | bidding_min_days_left | option  |
-      | shoes women | 25        | 20        | 10             | 1                     | Auction |
+      | shoes women | 30        | 15        | 10             | 1                     | Auction |
+
 
   Scenario Outline: Verify Recent searches in suggested search menu
-    Given
+    Given Set up Xpath in context
     When Type "<full_item>" in the search field
     And Press search button
     And Go back
     When Type "<partial_item>" in the search field
     And Find the first Recent searches element in suggested search
-    Then Verify first Recent searches element == "<full_item>"
+    Then Verify that first "Recent searches" element == "<full_item>"
 
     Examples:
       | partial_item | full_item   |
       | shoe         | shoes women |
 
 
-  Scenario: Verify image rendering
-    Given Open eBay
-    When Go to advanced search
-    And Select options
-    And Click submit
-    Then Verify the correct search results
+  Scenario Outline: Verify image rendering, HTTP response, appearance on the page
+    Given A directory to create, "<keywords>"
+      | directory |
+      | images    |
+    When Open Advanced search
+    And Select "<keyword_options>"
+    And Type "<keywords>" in the search field
+    And Press search button
+    Then Verify correct search
+    When Sort by central right "<option>"
     When Open the first found item
-    And Verify the images are downloading and rendering correctly
+    Then Collect the images of the item
+
+#    And Verify the images are downloading and rendering correctly
+
+    Examples:
+      | keyword_options        | keywords                    | option               |
+      | Exact words, any order | 1969 Mercedes-Benz SL-Class | Price: highest first |
