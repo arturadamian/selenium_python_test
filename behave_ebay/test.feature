@@ -77,8 +77,10 @@ Feature: eBay Regression Testing
     Then Verify the images are getting 200 HTTP response
     When Cleanup/create a directory for saving files in project root
     Then Download images to a new directory and verify the size > 0
-
-#    And Verify the images are downloading and rendering correctly
+    When Open image gallery
+    When Collect gallery images
+    Then Verify the images are redered and displayed
+    Then Verify the left arrow button of the gallery
 
     Examples:
       | keyword_options        | keywords                    | option               |

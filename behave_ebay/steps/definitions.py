@@ -485,3 +485,65 @@ def verify_images_size(context):
         img.save(img_path)
 
         img.size | should.do_not.contain(0), f"Oops - {img_name} is broken"
+
+
+@when('Open image gallery')
+def open_image_gallery(context):
+    xpath_image_area = "//img[@id='icImg']"
+
+    extremely_beautiful_thing = WebDriverWait(
+        context.driver, context.delay).until(
+        EC.element_to_be_clickable(
+            (By.XPATH, xpath_image_area)))
+    extremely_beautiful_thing.click()
+
+
+@when('Collect gallery images')
+def vcollect_gallery_images(context):
+    xpath_gallery_images = \
+        "//button[starts-with(@id, 'viEnlargeImgLayer_layer_fs_thImg')]"
+
+    try:
+        context.gorgeous_gallery_images = WebDriverWait(
+            context.driver, context.delay).until(
+            EC.presence_of_all_elements_located(
+                (By.XPATH, xpath_gallery_images)))
+    except TimeoutException:
+        print("Cannot collect gorgeous gallery images")
+
+
+@then('Verify the images are redered and displayed')
+def verify_images_displayed(context):
+    xpath_gallery_right_arrow = "//a[@title = 'To Next Image']"
+    xpath_gallery_left_arrow = "//a[@title='To Previous Image']"
+    xpath_gallery_central_image = "// img[@id = 'viEnlargeImgLayer_img_ctr']"
+
+    for image in range(len(context.gorgeous_gallery_images) - 1):
+        gallery_central_image = WebDriverWait(
+            context.driver, context.delay).until(
+            EC.presence_of_element_located(
+                (By.XPATH, xpath_gallery_central_image)))
+
+        styles = gallery_central_image.get_attribute("style").split()
+        size = styles[1].replace("px;", ""), styles[1].replace("px;", "")
+
+        all([int(float(i)) > 500 for i in size]) | should.be.equal.to(True)
+
+        gallery_right_arrow = WebDriverWait(
+            context.driver, context.delay).until(
+            EC.element_to_be_clickable(
+                (By.XPATH, xpath_gallery_right_arrow)))
+        gallery_right_arrow.click()
+
+
+@then('Verify the left arrow button of the gallery')
+def verify_left_arrow(context):
+    xpath_gallery_left_arrow = "//a[@title='To Previous Image']"
+
+    for image in range(len(context.gorgeous_gallery_images) - 1):
+        gallery_left_arrow = WebDriverWait(
+            context.driver, context.delay).until(
+            EC.element_to_be_clickable(
+                (By.XPATH, xpath_gallery_left_arrow)))
+        gallery_left_arrow.click()
+    sleep(5)  # Isn't this thing gorgeous
