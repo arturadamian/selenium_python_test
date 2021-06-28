@@ -45,8 +45,8 @@ Feature: eBay Regression Testing
 
     Examples:
       | item        | price_max | price_min | ship_price_max | bidding_min_days_left | option  |
-      | shoes women | 30        | 20        | 30             | 1                     | Auction |
-      | shoes men   | 25        | 15        | 7              | 2                     | Auction |
+      | shoes men   | 19        | 0         | 5              | 2                     | Auction |
+      | shoes women | 30        | 17        | 50             | 1                     | Auction |
 
   Scenario Outline: Verify Recent searches in suggested search menu
     Given Set up Xpath in context

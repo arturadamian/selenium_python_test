@@ -324,15 +324,17 @@ def filter_items(context, price_max, price_min,
         f"//div[contains(@class, 's-item__details') and " \
         f"(translate(.//span/text(), '$', '') > {price_min} and " \
         f"translate(.//span/text(), '$', '') < {price_max}) and " \
-        f"(.//span[(contains(text(),'Free shipping')) " \
-        f"or translate(substring-before(., ' shipping'), '+$', '')" \
-        f" <= {ship_price_max}]) and (.//span[@class='s-item__time-left'" \
-        f" and substring-before(., 'd') > {bidding_min_days_left}])]" \
-        f"/preceding::img[@class = 's-item__image-img']"
+        f"(.//span[(contains(text(),'Free shipping')) or " \
+        f"translate(substring-before(., ' shipping'), '+$', '') " \
+        f"<= {ship_price_max}]) and (.//span[@class='s-item__time-left' " \
+        f"and substring-before(., 'd') > {bidding_min_days_left}])]" \
+        f"/preceding-sibling::a"
     filtered_items = ''
 
     context.watch_links = collect_list_of_elements(
         context, xpath_links_for_filtered_items, filtered_items)
+    if context.watch_links is None:
+        context.scenario.skip(reason='No items found by with these filteres')
 
 
 @when('Cleanup/create a directory for saving files in project root')
@@ -380,6 +382,7 @@ def find_suggested_one(context):
         context.driver, context.delay).until(
         EC.presence_of_element_located(
             (By.XPATH, xpath_suggested_one)))
+    sleep(.5)
 
 
 @then('Verify that first "Recent searches" element == "{item_full_name}"')
