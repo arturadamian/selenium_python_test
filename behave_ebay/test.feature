@@ -1,14 +1,26 @@
 Feature: eBay Regression Testing
 
+
+  Scenario: Verify Hero carousel functionality
+    Given Hero carousel slides are collected
+    Then Autoplay and verify carousel correct slide appearance
+    When Click carousel play/pause button and track slides
+    Then Verify carousel correct slide appearance
+    When Click carousel left button and track slides
+    Then Verify carousel correct slide appearance
+    When Click carousel right button and track slides
+    Then Verify carousel correct slide appearance
+
+
   Scenario Outline: Add the first searched item to cart and verify that
-    Given Open eBay
+    Given
     When Choose "<category>"
     And Type "<item>" in the search field
     And Press search button
     And Find first item with "Buy it now" option
     Then Add the item to cart and get the title
     Then Check if the item is in the cart
-    And Quit browser
+
 
     Examples:
       | category | item   |
@@ -24,7 +36,7 @@ Feature: eBay Regression Testing
     And Filter items: "<price_max>", "<price_min>", "<ship_price_max>", "<bid_days_left>"
     Then Create/cleanup the directory for screenshots
     Then Save screenshots of selected items in the directory
-    And Quit browser
+
 
     Examples:
       | item        | price_max | price_min | ship_price_max | bid_days_left | option  |
@@ -44,12 +56,6 @@ Feature: eBay Regression Testing
       | partial_item | full_item   |
       | shoe         | shoes women |
 
-
-  Scenario: Verify Hero carousel functionality
-    Given Open eBay
-    Then Verify carousel autoplay
-    Then Verify carousel controls - left, right, play/pause buttons
-    And Quit browser
 
   Scenario: Verify image rendering
     Given Open eBay

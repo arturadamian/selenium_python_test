@@ -1,10 +1,10 @@
 import shutil
-from time import time
 from time import sleep
 from pathlib import Path
 from grappa import should
-from selenium import webdriver
-from behave import when, then, given
+from behave import when
+from behave import then
+from behave import given
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
@@ -41,42 +41,58 @@ def open_element_in_new_tab(context, xpath_or_element):
     context.driver.switch_to_window(window_after)
 
 
-def test_carousel_left(context, left):
+###############################h#################################
+# # # # # # # # # # # #  SCENARIO  # # # # # # # # # # # # # # #
 
-    if context.count == 0:
-        context.count = 2
-    else:
-        context.count -= 1
-    left.click()
-    sleep(1)
-    slide = context.hero_carousel_slides[context.count]
-    slide_apearence = slide.get_attribute("aria-hidden")
+# Verify Hero carousel functionality
 
-    slide_apearence | should.be.equal.to(None)
+################################################################
 
 
-def test_carousel_right(context, right):
-    if context.count == 2:
-        context.count = 0
-    else:
+@given('Hero carousel slides are collected')
+def collect_carousel_slides(context):
+    context.xpath_hero_carousel_slides = \
+        "//li[contains(@class, 'carousel__snap-point')" \
+        " and (ancestor::div[contains(@class, 'carousel__autoplay')])]"
+
+    context.hero_carousel_slides = WebDriverWait(
+        context.driver, context.delay).until(
+        EC.presence_of_all_elements_located(
+            (By.XPATH, context.xpath_hero_carousel_slides)))
+
+
+@then('Autoplay and verify carousel correct slide appearance')
+def autoplay_verify_carousel(context):
+    context.count = 0
+    for slide in context.hero_carousel_slides:
+        slide_apearence = slide.get_attribute("aria-hidden")
+        slide_apearence | should.be.equal.to(None)
+        if context.count != 2:
+            sleep(3.3)
+        else:
+            sleep(1)
+            break
         context.count += 1
-    right.click()
-    sleep(1)
-    slide = context.hero_carousel_slides[context.count]
-    slide_apearence = slide.get_attribute("aria-hidden")
-
-    slide_apearence | should.be.equal.to(None)
 
 
-def test_carousel_play_pause(context, play_pause):
-    context.xpath_play_pause_class = \
+@when('Click carousel play/pause button and track slides')
+def verify_carousel_play_pause(context):
+    xpath_hero_carousel_play_pause_button = \
+        "//button[contains(@class, 'carousel__playback')]"
+    xpath_play_pause_class = \
         "//*[name() = 'svg' and (contains(@class, 'icon--play') " \
         "or contains(@class, 'icon-pause'))]"
 
+    hero_carousel_play_pause_button = WebDriverWait(
+        context.driver, context.delay).until(
+        EC.element_to_be_clickable(
+            (By.XPATH, xpath_hero_carousel_play_pause_button)))
+    hero_carousel_play_pause_button.click()
+    sleep(1)
     play_pause_class = WebDriverWait(
         context.driver, context.delay).until(
         EC.presence_of_element_located(
-            (By.XPATH, context.xpath_play_pause_class)))
+            (By.XPATH, xpath_play_pause_class)))
     status_class = play_pause_class.get_attribute("class")
     play, pause = 0, 0
     if "icon--play" in status_class:
@@ -85,32 +101,68 @@ def test_carousel_play_pause(context, play_pause):
         pause = 1
     if context.count == 2 and play == 1:
         context.count = 0
-    elif play == 1:
+    elif 0 <= context.count < 2 and play == 1:
         context.count += 1
     elif pause == 1:
-        play_pause.click()
+        hero_carousel_play_pause_button.click()
         sleep(1)
         return
-    play_pause.click()
+    hero_carousel_play_pause_button.click()
+
+
+@then('Verify carousel correct slide appearance')
+def verify_carousel_left(context):
     sleep(1)
+    context.hero_carousel_slides = WebDriverWait(
+        context.driver, context.delay).until(
+        EC.presence_of_all_elements_located(
+            (By.XPATH, context.xpath_hero_carousel_slides)))
     slide = context.hero_carousel_slides[context.count]
     slide_apearence = slide.get_attribute("aria-hidden")
 
     slide_apearence | should.be.equal.to(None)
 
 
-@given('Open eBay')
-def open_ebay(context):
-    context.driver = webdriver.Chrome()
-    context.driver.get("https://www.ebay.com/")
-    context.delay = 5
+@when('Click carousel left button and track slides')
+def verify_carousel_left(context):
+    xpath_hero_carousel_left_arrow_button = \
+        "(//button[contains(@class, 'carousel__control') " \
+        "and (ancestor::div[contains(@class, 'carousel__autoplay')])])[1]"
+
+    if context.count == 0:
+        context.count = 2
+    elif 0 < context.count <= 2:
+        context.count -= 1
+    hero_carousel_left_arrow_button = WebDriverWait(
+        context.driver, context.delay).until(
+        EC.element_to_be_clickable(
+            (By.XPATH, xpath_hero_carousel_left_arrow_button)))
+    hero_carousel_left_arrow_button.click()
 
 
-@then('Quit browser')
-def quit_browser(context):
-    context.driver.close()
-    context.driver.quit()
+@when('Click carousel right button and track slides')
+def verify_carousel_right(context):
+    xpath_hero_carousel_right_arrow_button = \
+        "(//button[contains(@class, 'carousel__control')" \
+        " and (ancestor::div[contains(@class, 'carousel__autoplay')])])[2]"
 
+    if context.count == 2:
+        context.count = 0
+    elif 0 <= context.count < 2:
+        context.count += 1
+    hero_carousel_right_arrow_button = WebDriverWait(
+        context.driver, context.delay).until(
+        EC.element_to_be_clickable(
+            (By.XPATH, xpath_hero_carousel_right_arrow_button)))
+    hero_carousel_right_arrow_button.click()
+
+
+###############################################################
+# # # # # # # # # # # # SCENARIO  # # # # # # # # # # # # # # #
+
+# Add the first searched item to cart and verify that
+
+###############################################################
 
 @when('Choose "{category}"')
 def choose_category(context, category):
