@@ -40,7 +40,7 @@ Feature: eBay Regression Testing
     Then Verify correct search
     When Sort listings by central left "<option>"
     And Filter items: "<price_max>", "<price_min>", "<ship_price_max>", "<bidding_min_days_left>"
-    Then Create/cleanup a directory for saving files in project root
+    When Cleanup/create a directory for saving files in project root
     Then Open items in a new tab and save screenshots in the directory
 
     Examples:
@@ -74,6 +74,9 @@ Feature: eBay Regression Testing
     When Sort by central right "<option>"
     When Open the first found item
     Then Collect the images of the item
+    Then Verify the images are getting 200 HTTP response
+    When Cleanup/create a directory for saving files in project root
+    Then Download images to a new directory and verify the size > 0
 
 #    And Verify the images are downloading and rendering correctly
 

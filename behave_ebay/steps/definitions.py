@@ -2,11 +2,13 @@ import shutil
 import requests
 from PIL import Image
 from time import sleep
+from io import BytesIO
 from pathlib import Path
 from grappa import should
 from behave import when
 from behave import then
 from behave import given
+from urllib.request import urlretrieve
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
@@ -332,7 +334,7 @@ def filter_items(context, price_max, price_min,
         print("Cannot collect filtered items")
 
 
-@then('Cleanup/create a directory for saving files in project root')
+@when('Cleanup/create a directory for saving files in project root')
 def create_dir(context):
     if Path(f"./{context.dir}").is_dir():
         shutil.rmtree(f"./{context.dir}")
@@ -405,6 +407,7 @@ def save_data(context, item):
     context.xpath_beautiful_thing_images = \
         "//img[ancestor::div[@id = 'vi_main_img_fs']]"
     context.img_urls = []
+    context.image_bytes = []
     context.item = "\" \"".join(tuple(item.split()))
 
 
@@ -467,6 +470,7 @@ def collect_images(context):
         img_link = gorgeous_image.get_attribute("src")
         context.img_urls.append(img_link)
         response = requests.get(img_link)
+        context.image_bytes.append(BytesIO(response.content))
 
         response.status_code | should.be.equal.to(200), \
             f"{img_link} delivered response code of {response.status_code}"
@@ -474,6 +478,10 @@ def collect_images(context):
 
 @then('Download images to a new directory and verify the size > 0')
 def verify_images_size(context):
-    for link in context.img_urls:
-        img = Image.open(link)
-        img.save()
+    for count, byte in enumerate(context.image_bytes):
+        img_name = f"gorgeous_image_{count}.png"
+        img_path = f"./{context.dir}/{img_name}"
+        img = Image.open(byte)
+        img.save(img_path)
+
+        img.size | should.do_not.contain(0), f"Oops - {img_name} is broken"
