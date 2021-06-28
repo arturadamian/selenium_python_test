@@ -8,7 +8,6 @@ from grappa import should
 from behave import when
 from behave import then
 from behave import given
-from urllib.request import urlretrieve
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
@@ -41,11 +40,12 @@ def collect_carousel_slides(context):
 @then('Autoplay and verify carousel correct slide appearance')
 def autoplay_verify_carousel(context):
     context.count = 0
+    context.total_count = len(context.hero_carousel_slides) - 1
     for slide in context.hero_carousel_slides:
         slide_apearence = slide.get_attribute("aria-hidden")
         slide_apearence | should.be.equal.to(None)
-        if context.count != 2:
-            sleep(3.43)  # the timing may vary
+        if context.count != context.total_count:
+            sleep(3.33)  # the timing may vary
         else:
             sleep(1)
             break
@@ -65,7 +65,7 @@ def verify_carousel_play_pause(context):
         EC.element_to_be_clickable(
             (By.XPATH, xpath_hero_carousel_play_pause_button)))
     hero_carousel_play_pause_button.click()
-    sleep(1)
+    sleep(2)
     play_pause_class = WebDriverWait(
         context.driver, context.delay).until(
         EC.presence_of_element_located(
@@ -76,9 +76,9 @@ def verify_carousel_play_pause(context):
         play = 1
     elif "icon--pause" in status_class:
         pause = 1
-    if context.count == 2 and play == 1:
+    if context.count == context.total_count and play == 1:
         context.count = 0
-    elif 0 <= context.count < 2 and play == 1:
+    elif 0 <= context.count < context.total_count and play == 1:
         context.count += 1
     elif pause == 1:
         hero_carousel_play_pause_button.click()
@@ -89,7 +89,7 @@ def verify_carousel_play_pause(context):
 
 @then('Verify carousel correct slide appearance')
 def verify_carousel_left(context):
-    sleep(1)
+    sleep(.5)
     context.hero_carousel_slides = WebDriverWait(
         context.driver, context.delay).until(
         EC.presence_of_all_elements_located(
@@ -101,14 +101,14 @@ def verify_carousel_left(context):
 
 
 @when('Click carousel left button and track slides')
-def verify_carousel_left(context):
+def click_carousel_left(context):
     xpath_hero_carousel_left_arrow_button = \
         "(//button[contains(@class, 'carousel__control') " \
         "and (ancestor::div[contains(@class, 'carousel__autoplay')])])[1]"
 
     if context.count == 0:
-        context.count = 2
-    elif 0 < context.count <= 2:
+        context.count = context.total_count
+    elif 0 < context.count <= context.total_count:
         context.count -= 1
     hero_carousel_left_arrow_button = WebDriverWait(
         context.driver, context.delay).until(
@@ -118,14 +118,14 @@ def verify_carousel_left(context):
 
 
 @when('Click carousel right button and track slides')
-def verify_carousel_right(context):
+def click_carousel_right(context):
     xpath_hero_carousel_right_arrow_button = \
         "(//button[contains(@class, 'carousel__control')" \
         " and (ancestor::div[contains(@class, 'carousel__autoplay')])])[2]"
 
-    if context.count == 2:
+    if context.count == context.total_count:
         context.count = 0
-    elif 0 <= context.count < 2:
+    elif 0 <= context.count < context.total_count:
         context.count += 1
     hero_carousel_right_arrow_button = WebDriverWait(
         context.driver, context.delay).until(
@@ -174,6 +174,7 @@ def search_item(context, item):
         context.driver, context.delay).until(
         EC.presence_of_element_located(
             (By.XPATH, context.xpath_search_field)))
+    sleep(.5)
     search_input.send_keys(item)
     WebDriverWait(context.driver, context.delay).until(
         lambda browser: search_input.get_attribute('value') == item)
@@ -213,6 +214,7 @@ def open_element_in_new_tab(context):
         element).key_down(
         Keys.COMMAND).click().key_up(
         Keys.COMMAND).perform()
+    sleep(.5)
     WebDriverWait(context.driver, context.delay).until(
         EC.number_of_windows_to_be(2))
     window_after = context.driver.window_handles[1]
@@ -231,13 +233,16 @@ def add_to_cart(context):
 @then('Add the item to cart if there is an option')
 def add_to_cart(context):
     xpath_add_to_cart_button = "//a[@id = 'atcRedesignId_btn']"
-
+    xpath_item_added_modal = "//div[@class = 'vi-overlayTitleBar']"
     try:
         add_to_button = WebDriverWait(
             context.driver, context.delay
         ).until(EC.element_to_be_clickable(
             (By.XPATH, xpath_add_to_cart_button)))
         add_to_button.click()
+        WebDriverWait(context.driver, context.delay).until(
+            EC.visibility_of_element_located((By.XPATH, xpath_item_added_modal)))
+        sleep(.5)
     except TimeoutException:
         context.scenario.skip(reason='This item has no "Add to cart" option')
     context.driver.close()
@@ -323,15 +328,11 @@ def filter_items(context, price_max, price_min,
         f"or translate(substring-before(., ' shipping'), '+$', '')" \
         f" <= {ship_price_max}]) and (.//span[@class='s-item__time-left'" \
         f" and substring-before(., 'd') > {bidding_min_days_left}])]" \
-        f"/ancestor::div/a"
+        f"/preceding::img[@class = 's-item__image-img']"
+    filtered_items = ''
 
-    try:
-        context.watch_links = WebDriverWait(
-            context.driver, context.delay).until(
-            EC.presence_of_all_elements_located(
-                (By.XPATH, xpath_links_for_filtered_items)))
-    except TimeoutException:
-        print("Cannot collect filtered items")
+    context.watch_links = collect_list_of_elements(
+        context, xpath_links_for_filtered_items, filtered_items)
 
 
 @when('Cleanup/create a directory for saving files in project root')
@@ -352,9 +353,12 @@ def save_screenshots(context):
         context.driver.switch_to.window(context.window_before)
 
 
-######################################################################
-# # # # # # # # # # # #  THIRD SCENARIO  # # # # # # # # # # # # # # #
-######################################################################
+################################################################
+# # # # # # # # # # # #  SCENARIO  # # # # # # # # # # # # # # #
+
+# Verify Recent searches in suggested search menu
+
+################################################################
 
 
 @given('Set up Xpath in context')
@@ -414,11 +418,8 @@ def save_data(context, item):
 @when('Open advanced search')
 def open_advanced(context):
     xpath_advanced_search = "//a[@id = 'gh-as-a']"
-    element = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.element_to_be_clickable(
-            (By.XPATH, xpath_advanced_search)))
-    element.click()
+
+    open_element(context, xpath_advanced_search)
 
 
 @when('Sort by central right "{option}"')
@@ -446,26 +447,26 @@ def sort_by_option(context, option):
 def open_first_item(context):
     xpath_very_beautiful_item = "(//img[@class = 'img'])[1]"
 
-    extremely_beautiful_thing = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.element_to_be_clickable(
-            (By.XPATH, xpath_very_beautiful_item)))
-    extremely_beautiful_thing.click()
+    open_element(context, xpath_very_beautiful_item)
 
 
 @then('Collect the images of the item')
 def collect_images(context):
-    try:
-        context.gorgeous_images = WebDriverWait(
-            context.driver, context.delay).until(
-            EC.presence_of_all_elements_located(
-                (By.XPATH, context.xpath_beautiful_thing_images)))
-    except TimeoutException:
-        print("Cannot collect gorgeous images")
+    item_images = ''
+
+    context.gorgeous_images = collect_list_of_elements(
+        context, context.xpath_beautiful_thing_images, item_images)
+    # try:
+    #     context.gorgeous_images = WebDriverWait(
+    #         context.driver, context.delay).until(
+    #         EC.presence_of_all_elements_located(
+    #             (By.XPATH, context.xpath_beautiful_thing_images)))
+    # except TimeoutException:
+    #     print("Cannot collect gorgeous images")
 
 
 @then('Verify the images are getting 200 HTTP response')
-def collect_images(context):
+def verify_images_response(context):
     for gorgeous_image in context.gorgeous_images:
         img_link = gorgeous_image.get_attribute("src")
         context.img_urls.append(img_link)
@@ -491,31 +492,22 @@ def verify_images_size(context):
 def open_image_gallery(context):
     xpath_image_area = "//img[@id='icImg']"
 
-    extremely_beautiful_thing = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.element_to_be_clickable(
-            (By.XPATH, xpath_image_area)))
-    extremely_beautiful_thing.click()
+    open_element(context, xpath_image_area)
 
 
 @when('Collect gallery images')
 def vcollect_gallery_images(context):
     xpath_gallery_images = \
         "//button[starts-with(@id, 'viEnlargeImgLayer_layer_fs_thImg')]"
+    gallery_images = ''
 
-    try:
-        context.gorgeous_gallery_images = WebDriverWait(
-            context.driver, context.delay).until(
-            EC.presence_of_all_elements_located(
-                (By.XPATH, xpath_gallery_images)))
-    except TimeoutException:
-        print("Cannot collect gorgeous gallery images")
+    context.gorgeous_gallery_images = \
+        collect_list_of_elements(context, xpath_gallery_images, gallery_images)
 
 
 @then('Verify the images are redered and displayed')
 def verify_images_displayed(context):
     xpath_gallery_right_arrow = "//a[@title = 'To Next Image']"
-    xpath_gallery_left_arrow = "//a[@title='To Previous Image']"
     xpath_gallery_central_image = "// img[@id = 'viEnlargeImgLayer_img_ctr']"
 
     for image in range(len(context.gorgeous_gallery_images) - 1):
@@ -546,4 +538,44 @@ def verify_left_arrow(context):
             EC.element_to_be_clickable(
                 (By.XPATH, xpath_gallery_left_arrow)))
         gallery_left_arrow.click()
-    sleep(5)  # Isn't this thing gorgeous
+    sleep(5)  # Oh, this Mercedes
+
+
+################################################################
+# # # # # # # # # # #   HELPER FUNCTIONS   # # # # # # # # # # #
+################################################################
+
+
+def open_element(context, xpath):
+    """Opens WebDriver element.
+
+    Args:
+        context (obj): Behave object
+        xpath (str): locator of the element
+
+    """
+    element = WebDriverWait(
+        context.driver, context.delay).until(
+        EC.element_to_be_clickable(
+            (By.XPATH, xpath)))
+    element.click()
+
+
+def collect_list_of_elements(context, xpath, name):
+    """Collects WebDriver elements.
+
+    Args:
+        context (obj): Behave object
+        xpath (str): locator of the elements
+        name (str): name of the collection
+
+    """
+    try:
+        name = WebDriverWait(
+            context.driver, context.delay).until(
+            EC.presence_of_all_elements_located(
+                (By.XPATH, xpath)))
+    except TimeoutException:
+        print(f"Cannot collect {name}")
+    else:
+        return name

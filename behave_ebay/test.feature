@@ -45,8 +45,8 @@ Feature: eBay Regression Testing
 
     Examples:
       | item        | price_max | price_min | ship_price_max | bidding_min_days_left | option  |
-      | shoes women | 30        | 15        | 10             | 1                     | Auction |
-
+      | shoes women | 30        | 20        | 30             | 1                     | Auction |
+      | shoes men   | 25        | 15        | 7              | 2                     | Auction |
 
   Scenario Outline: Verify Recent searches in suggested search menu
     Given Set up Xpath in context
@@ -60,7 +60,7 @@ Feature: eBay Regression Testing
     Examples:
       | partial_item | full_item   |
       | shoe         | shoes women |
-
+      | shoe         | shoes men   |
 
   Scenario Outline: Verify image rendering, HTTP response, appearance on the page
     Given A directory to create, "<keywords>"
