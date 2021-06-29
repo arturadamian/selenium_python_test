@@ -88,7 +88,7 @@ def verify_carousel_play_pause(context):
 
 
 @then('Verify carousel correct slide appearance')
-def verify_carousel_left(context):
+def verify_carousel_slide(context):
     sleep(.5)
     context.hero_carousel_slides = WebDriverWait(
         context.driver, context.delay).until(
@@ -152,7 +152,7 @@ def save_xpath_context(context):
 
 
 @when('Select "{category}"')
-def choose_category(context, category):
+def select_category(context, category):
     element = ''
 
     try:
@@ -168,7 +168,7 @@ def choose_category(context, category):
 
 
 @when('Type "{item}" in the search field')
-def search_item(context, item):
+def type_item(context, item):
 
     search_input = WebDriverWait(
         context.driver, context.delay).until(
@@ -188,10 +188,11 @@ def press_search_button(context):
         EC.element_to_be_clickable(
             (By.XPATH, context.xpath_search_button)))
     element.click()
+    sleep(.5)
 
 
 @when('Find first item to open in a new tab')
-def add_to_cart(context):
+def open_first_item(context):
     xpath_first_item_with_buy_option = \
         "(//div[contains(@class, 's-item__info')" \
         " and .//span/text() = 'Buy It Now']/a)[1]"
@@ -222,7 +223,7 @@ def open_element_in_new_tab(context):
 
 
 @then('Get the title of the item')
-def add_to_cart(context):
+def get_title(context):
     context.item_title = WebDriverWait(
         context.driver, context.delay).until(
         EC.presence_of_element_located(
@@ -301,7 +302,7 @@ def verify_searched_item(context):
 
 
 @when('Sort listings by central left "{option}"')
-def sort_listings_by_left_option(context, option):
+def sort_listings_by_central_left_option(context, option):
     xpath_sort_listings_option = \
         f"//span[text() = '{option}' and " \
         f"ancestor::ul[@class='fake-tabs__items']]"
@@ -316,10 +317,10 @@ def sort_listings_by_left_option(context, option):
         print(f"Cannot sort Listings by {option}")
 
 
-@when('Filter items: {price_max}, {price_min}, '
+@when('Filter and collect items: {price_max}, {price_min}, '
       '{ship_price_max}, {bidding_min_days_left}')
-def filter_items(context, price_max, price_min,
-                 ship_price_max, bidding_min_days_left):
+def collect_filter_items(context, price_max, price_min,
+                         ship_price_max, bidding_min_days_left):
     xpath_links_for_filtered_items = \
         f"//div[contains(@class, 's-item__details') and " \
         f"(translate(.//span/text(), '$', '') > {price_min} and " \
@@ -378,11 +379,11 @@ def go_back(context):
 def find_suggested_one(context):
     xpath_suggested_one = "(//li[contains(@class, 'ui-menu-item')]/a)[1]"
 
+    sleep(1)
     context.suggested_one = WebDriverWait(
         context.driver, context.delay).until(
         EC.presence_of_element_located(
             (By.XPATH, xpath_suggested_one)))
-    sleep(.5)
 
 
 @then('Verify that first "Recent searches" element == "{item_full_name}"')
@@ -413,7 +414,6 @@ def save_data(context, item):
     context.xpath_header_one = "//h1[@class = 'rsHdr']"
     context.xpath_beautiful_thing_images = \
         "//img[ancestor::div[@id = 'vi_main_img_fs']]"
-    context.img_urls = []
     context.image_bytes = []
     context.item = "\" \"".join(tuple(item.split()))
 
@@ -426,7 +426,7 @@ def open_advanced(context):
 
 
 @when('Sort by central right "{option}"')
-def sort_by_option(context, option):
+def sort_by_central_right_option(context, option):
     xpath_central_right_first_dropdown = \
         "(//a[contains(@class, 'dropdown-toggle')])[1]"
     xpath_central_right_first_dropdown_option = \
@@ -459,20 +459,12 @@ def collect_images(context):
 
     context.gorgeous_images = collect_list_of_elements(
         context, context.xpath_beautiful_thing_images, item_images)
-    # try:
-    #     context.gorgeous_images = WebDriverWait(
-    #         context.driver, context.delay).until(
-    #         EC.presence_of_all_elements_located(
-    #             (By.XPATH, context.xpath_beautiful_thing_images)))
-    # except TimeoutException:
-    #     print("Cannot collect gorgeous images")
 
 
 @then('Verify the images are getting 200 HTTP response')
 def verify_images_response(context):
     for gorgeous_image in context.gorgeous_images:
         img_link = gorgeous_image.get_attribute("src")
-        context.img_urls.append(img_link)
         response = requests.get(img_link)
         context.image_bytes.append(BytesIO(response.content))
 
@@ -480,13 +472,11 @@ def verify_images_response(context):
             f"{img_link} delivered response code of {response.status_code}"
 
 
-@then('Download images to a new directory and verify the size > 0')
+@then('Verify that downloaded images size > 0')
 def verify_images_size(context):
     for count, byte in enumerate(context.image_bytes):
         img_name = f"gorgeous_image_{count}.png"
-        img_path = f"./{context.dir}/{img_name}"
         img = Image.open(byte)
-        img.save(img_path)
 
         img.size | should.do_not.contain(0), f"Oops - {img_name} is broken"
 
@@ -499,7 +489,7 @@ def open_image_gallery(context):
 
 
 @when('Collect gallery images')
-def vcollect_gallery_images(context):
+def collect_gallery_images(context):
     xpath_gallery_images = \
         "//button[starts-with(@id, 'viEnlargeImgLayer_layer_fs_thImg')]"
     gallery_images = ''
@@ -508,7 +498,7 @@ def vcollect_gallery_images(context):
         collect_list_of_elements(context, xpath_gallery_images, gallery_images)
 
 
-@then('Verify the images are redered and displayed')
+@then('Verify the images are rendered and displayed')
 def verify_images_displayed(context):
     xpath_gallery_right_arrow = "//a[@title = 'To Next Image']"
     xpath_gallery_central_image = "// img[@id = 'viEnlargeImgLayer_img_ctr']"
@@ -520,8 +510,8 @@ def verify_images_displayed(context):
                 (By.XPATH, xpath_gallery_central_image)))
 
         styles = gallery_central_image.get_attribute("style").split()
-        size = styles[1].replace("px;", ""), styles[1].replace("px;", "")
-
+        size = styles[1].replace("px;", ""), styles[3].replace("px;", "")
+        print(size)
         all([int(float(i)) > 500 for i in size]) | should.be.equal.to(True)
 
         gallery_right_arrow = WebDriverWait(
@@ -541,7 +531,7 @@ def verify_left_arrow(context):
             EC.element_to_be_clickable(
                 (By.XPATH, xpath_gallery_left_arrow)))
         gallery_left_arrow.click()
-    sleep(5)  # Oh, this Mercedes
+    sleep(2)  # Oh, this Mercedes
 
 
 ################################################################
