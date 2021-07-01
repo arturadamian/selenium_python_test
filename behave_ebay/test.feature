@@ -13,7 +13,7 @@ Feature: eBay Regression Testing
 
 
   Scenario Outline: Add the first searched item to cart and verify that with it's title in mini cart
-    Given Xpath saved in context
+    Given Saved data
     When Select "<category>"
     And Type "<item>" in the search field
     And Press search button
@@ -39,7 +39,7 @@ Feature: eBay Regression Testing
     And Press search button
     Then Verify correct search
     When Sort listings by central left "<option>"
-    And Filter and collect items: "<price_max>", "<price_min>", "<ship_price_max>", "<bidding_min_days_left>"
+    When Filter and collect items: "<price_max>", "<price_min>", "<ship_price_max>", "<bidding_min_days_left>"
     When Cleanup/create a directory for saving files in project root
     Then Open items in a new tab and save screenshots in the directory
 
@@ -49,7 +49,7 @@ Feature: eBay Regression Testing
       | shoes women | 30        | 17        | 50             | 1                     | Auction |
 
   Scenario Outline: Verify Recent searches in suggested search menu
-    Given Set up Xpath in context
+    Given Set up necessary data
     When Type "<full_item>" in the search field
     And Press search button
     And Go back
@@ -75,7 +75,6 @@ Feature: eBay Regression Testing
     When Open the first found item
     Then Collect the images of the item
     Then Verify the images are getting 200 HTTP response
-#    When Cleanup/create a directory for saving files in project root
     Then Verify that downloaded images size > 0
     When Open image gallery
     When Collect gallery images
@@ -85,3 +84,51 @@ Feature: eBay Regression Testing
     Examples:
       | keyword_options        | keywords                    | option               |
       | Exact words, any order | 1969 Mercedes-Benz SL-Class | Price: highest first |
+
+
+  Scenario: Verify navigation links redirection
+    Given Links -> Titles to verify
+      """
+      {
+        "Motors": "eBay Motors: Auto Parts and Vehicles | eBay",
+        "Fashion": "Fashion products for sale | eBay",
+        "Electronics": "Electronics products for sale | eBay",
+        "Collectibles & Art": "Collectibles & Art products for sale | eBay",
+        "Home & Garden": "Home & Garden products for sale | eBay",
+        "Sporting Goods": "Sporting Goods for sale | eBay",
+        "Toys": "Toys & Hobbies products for sale | eBay",
+        "Business & Industrial": "Business & Industrial products for sale | eBay",
+        "Music": "Music products for sale | eBay",
+        "Deals": "Daily Deals on eBay | Best deals and Free Shipping"
+      }
+      """
+    When Open navigation link Deals
+    Then Verify correct redirection with title
+
+
+  Scenario Outline: Search for a very specific item and verfify results
+    Given Data for navigation
+    When Type "<keywords>" in the search field
+    When Press search button
+    Then Verify correct search
+    When Collect listing titles
+    Then Calculate result match
+    Then Verify match score > <min_match_score> and full title match score > <min_full_title_match_score>
+
+    Examples:
+      | keywords                   | min_match_score | min_full_title_match_score |
+      | green inflatable crocodile | 50              | 20                         |
+
+
+  Scenario Outline: Search for a specific item with details and verfify results
+    Given Some data stored
+    When Type "<main_search> <main_details> <other_details>" in the search field
+    When Press search button
+    Then Verify correct search
+    When Collect listing titles
+    Then Verify all listing titles contain the <main_search> with important <main_details>
+#    Then Verify most items contain "<other_details>"
+
+    Examples:
+      | main_search   | main_details | other_details               |
+      | iPhone 11 Pro | 256GB        | Max midnight green unlocked |
