@@ -26,24 +26,24 @@ from selenium.webdriver.support import expected_conditions as EC
 @given('Hero carousel slides are collected')
 def collect_carousel_slides(context):
     context.xpath_hero_carousel_slides = \
-        "//li[contains(@class, 'carousel__snap-point')" \
-        " and (ancestor::div[contains(@class, 'carousel__autoplay')])]"
+        "//li[contains(@class, 'carousel__snap-point')]" \
+        "[ancestor::div[contains(@class, 'carousel__autoplay')]]"
+    carousel_slides = "carousel_slides"
 
-    context.hero_carousel_slides = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.presence_of_all_elements_located(
-            (By.XPATH, context.xpath_hero_carousel_slides)))
+    context.hero_carousel_slides = \
+        _collect(context, context.xpath_hero_carousel_slides, carousel_slides)
 
 
 @then('Autoplay and verify carousel correct slide appearance')
 def autoplay_verify_carousel(context):
     context.count = 0
     context.total_count = len(context.hero_carousel_slides) - 1
+    sleep(1)
     for slide in context.hero_carousel_slides:
         slide_apearence = slide.get_attribute("aria-hidden")
-        slide_apearence | should.be.equal.to(None)
+        assert slide_apearence is None
         if context.count != context.total_count:
-            sleep(3.33)  # the timing may vary
+            sleep(3.3)
         else:
             sleep(1)
             break
@@ -52,22 +52,17 @@ def autoplay_verify_carousel(context):
 
 @when('Click carousel play/pause button and track slides')
 def verify_carousel_play_pause(context):
-    xpath_hero_carousel_play_pause_button = \
+    xpath_play_pause_button = \
         "//button[contains(@class, 'carousel__playback')]"
     xpath_play_pause_class = \
-        "//*[name() = 'svg' and (contains(@class, 'icon--play') " \
-        "or contains(@class, 'icon-pause'))]"
+        "//*[name() = 'svg']" \
+        "[parent::button/@class = 'carousel__playback']"
+    play_pause = "play_pause"
 
-    hero_carousel_play_pause_button = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.element_to_be_clickable(
-            (By.XPATH, xpath_hero_carousel_play_pause_button)))
-    hero_carousel_play_pause_button.click()
-    sleep(2)
-    play_pause_class = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.presence_of_element_located(
-            (By.XPATH, xpath_play_pause_class)))
+    play_pause_button = \
+        _click(context, xpath_play_pause_button)
+    play_pause_class = \
+        _presence(context, xpath_play_pause_class, play_pause)
     status_class = play_pause_class.get_attribute("class")
     play, pause = 0, 0
     if "icon--play" in status_class:
@@ -79,57 +74,48 @@ def verify_carousel_play_pause(context):
     elif 0 <= context.count < context.total_count and play == 1:
         context.count += 1
     elif pause == 1:
-        hero_carousel_play_pause_button.click()
+        play_pause_button.click()
         sleep(1)
         return
-    hero_carousel_play_pause_button.click()
+    play_pause_button.click()
 
 
 @then('Verify carousel correct slide appearance')
 def verify_carousel_slide(context):
-    sleep(.5)
-    context.hero_carousel_slides = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.presence_of_all_elements_located(
-            (By.XPATH, context.xpath_hero_carousel_slides)))
+    carousel_slides = "carousel_slides"
+    sleep(.2)
+
+    context.hero_carousel_slides = \
+        _collect(context, context.xpath_hero_carousel_slides, carousel_slides)
     slide = context.hero_carousel_slides[context.count]
     slide_apearence = slide.get_attribute("aria-hidden")
-
-    slide_apearence | should.be.equal.to(None)
+    assert slide_apearence is None
 
 
 @when('Click carousel left button and track slides')
 def click_carousel_left(context):
-    xpath_hero_carousel_left_arrow_button = \
-        "(//button[contains(@class, 'carousel__control') " \
-        "and (ancestor::div[contains(@class, 'carousel__autoplay')])])[1]"
+    xpath_left_arrow_button = \
+        "//button[contains(@class, 'carousel__control')]" \
+        "[ancestor::div[contains(@class, 'carousel__autoplay')]][1]"
 
     if context.count == 0:
         context.count = context.total_count
     elif 0 < context.count <= context.total_count:
         context.count -= 1
-    hero_carousel_left_arrow_button = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.element_to_be_clickable(
-            (By.XPATH, xpath_hero_carousel_left_arrow_button)))
-    hero_carousel_left_arrow_button.click()
+    _click(context, xpath_left_arrow_button)
 
 
 @when('Click carousel right button and track slides')
 def click_carousel_right(context):
-    xpath_hero_carousel_right_arrow_button = \
-        "(//button[contains(@class, 'carousel__control')" \
-        " and (ancestor::div[contains(@class, 'carousel__autoplay')])])[2]"
+    xpath_right_arrow_button = \
+        "(//button[contains(@class, 'carousel__control')]" \
+        "[ancestor::div[contains(@class, 'carousel__autoplay')]])[2]"
 
     if context.count == context.total_count:
         context.count = 0
     elif 0 <= context.count < context.total_count:
         context.count += 1
-    hero_carousel_right_arrow_button = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.element_to_be_clickable(
-            (By.XPATH, xpath_hero_carousel_right_arrow_button)))
-    hero_carousel_right_arrow_button.click()
+    _click(context, xpath_right_arrow_button)
 
 
 # --- Add the first searched item to cart and verify that
@@ -139,78 +125,52 @@ def click_carousel_right(context):
 @given('Saved data')
 def save_data(context):
     context.xpath_select_category = "//select[@id = 'gh-cat']"
-    context.xpath_search_field = "//input[@id = 'gh-ac']"
+    context.xpath_input_field = "//input[@id = 'gh-ac']"
     context.xpath_search_button = "//input[@id = 'gh-btn']"
     context.xpath_item_title = '//h1[@id = "itemTitle"]'
 
 
-@when('Select "{category}"')
+@when('select {category}')
 def select_category(context, category):
-    element = ''
-
-    try:
-        element = WebDriverWait(
-            context.driver, context.delay).until(
-            EC.presence_of_element_located(
-                (By.XPATH, context.xpath_select_category)))
-    except TimeoutException:
-        print(f"Cannot select {category} category")
-    finally:
-        select = Select(element)
-        select.select_by_visible_text(category)
+    _select(context, context.xpath_select_category, category)
 
 
-@when('Type "{item}" in the search field')
+@when('Type {item} in the search field')
 def type_item(context, item):
     if not hasattr(context, 'item'):
         context.item = item.lower()
-
-    search_input = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.presence_of_element_located(
-            (By.XPATH, context.xpath_search_field)))
-    sleep(.5)
-    search_input.send_keys(item)
-    WebDriverWait(context.driver, context.delay).until(
-        lambda browser: search_input.get_attribute('value') == item)
+    _type(context, context.xpath_input_field, item)
 
 
 @when('Press search button')
 def press_search_button(context):
-
-    element = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.element_to_be_clickable(
-            (By.XPATH, context.xpath_search_button)))
-    element.click()
-    sleep(.5)
+    _click(context, context.xpath_search_button)
 
 
 @when('Find first item to open in a new tab')
 def open_first_item(context):
     xpath_first_item_with_buy_option = \
-        "(//div[contains(@class, 's-item__info')" \
-        " and .//span/text() = 'Buy It Now']/a)[1]"
-
+        "(//div[contains(@class, 's-item__info')]" \
+        "[.//span/text() = 'Buy It Now']/a)[1]"
     context.xpath_el_new_tab = xpath_first_item_with_buy_option
 
 
 @when('Open element in a new tab')
 def open_element_in_new_tab(context):
+    element = "element_to_open"
     if isinstance(context.xpath_el_new_tab, str):
-        element = WebDriverWait(
-            context.driver, context.delay).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, context.xpath_el_new_tab)))
+        element = _presence(
+            context, context.xpath_el_new_tab, element)
     else:
         element = context.xpath_el_new_tab
+    sleep(.2)
     context.window_before = context.driver.window_handles[0]
     actions = ActionChains(context.driver)
     actions.move_to_element(
         element).key_down(
         Keys.COMMAND).click().key_up(
         Keys.COMMAND).perform()
-    sleep(.5)
+    sleep(.2)
     WebDriverWait(context.driver, context.delay).until(
         EC.number_of_windows_to_be(2))
     window_after = context.driver.window_handles[1]
@@ -219,11 +179,11 @@ def open_element_in_new_tab(context):
 
 @then('Get the title of the item')
 def get_title(context):
-    context.item_title = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.presence_of_element_located(
-            (By.XPATH, context.xpath_item_title))
-    ).text
+    title = "title"
+
+    item_title = _presence(
+        context, context.xpath_item_title, title)
+    context.item_title = item_title.text
 
 
 @then('Add the item to cart if there is an option')
@@ -231,14 +191,10 @@ def add_to_cart(context):
     xpath_add_to_cart_button = "//a[@id = 'atcRedesignId_btn']"
     xpath_item_added_modal = "//div[@class = 'vi-overlayTitleBar']"
     try:
-        add_to_button = WebDriverWait(
-            context.driver, context.delay
-        ).until(EC.element_to_be_clickable(
-            (By.XPATH, xpath_add_to_cart_button)))
-        add_to_button.click()
+        _click(context, xpath_add_to_cart_button)
         WebDriverWait(context.driver, context.delay).until(
             EC.visibility_of_element_located((By.XPATH, xpath_item_added_modal)))
-        sleep(.5)
+        sleep(.2)
     except TimeoutException:
         context.scenario.skip(reason='This item has no "Add to cart" option')
     context.driver.close()
@@ -273,9 +229,9 @@ def verify_item_in_cart(context):
 # --- in a created directory
 
 
-@given('Save directory to create, "{item}"')
+@given('Save directory to create, {item}')
 def save_data(context, item):
-    context.xpath_search_field = "//input[@id = 'gh-ac']"
+    context.xpath_input_field = "//input[@id = 'gh-ac']"
     context.xpath_search_button = "//input[@id = 'gh-btn']"
     context.xpath_header_one = "//h1[@class = 'srp-controls__count-heading']"
     context.item = item
@@ -291,38 +247,33 @@ def verify_searched_item(context):
     check | should.be.equal.to(True)
 
 
-@when('Sort listings by central left "{option}"')
+@when('Sort listings by central left {option}')
 def sort_listings_by_central_left_option(context, option):
     xpath_sort_listings_option = \
-        f"//span[text() = '{option}' and " \
-        f"ancestor::ul[@class='fake-tabs__items']]"
+        f"//span[text() = '{option}']" \
+        f"[ancestor::ul[@class='fake-tabs__items']]"
 
     try:
-        element = WebDriverWait(
-            context.driver, context.delay).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, xpath_sort_listings_option)))
-        element.click()
+        _click(context, xpath_sort_listings_option)
     except TimeoutException:
         print(f"Cannot sort Listings by {option}")
 
 
-@when('Filter and collect items: {price_ma}, {price_min}, '
+@when('Filter and collect items: {price_max}, {price_min}, '
       '{ship_price_max}, {bidding_min_days_left}')
-def collect_filter_items(context, price_ma, price_min,
+def collect_filter_items(context, price_max, price_min,
                          ship_price_max, bidding_min_days_left):
     xpath_links_for_filtered_items = \
-        f"//div[contains(@class, 's-item__details') and " \
-        f"(translate(.//span/text(), '$', '') > {price_min} and " \
-        f"translate(.//span/text(), '$', '') < {price_ma}) and " \
-        f"(.//span[(contains(text(),'Free shipping')) or " \
+        f"//div[contains(@class, 's-item__details')][translate(.//span/text(), '$', '')" \
+        f" > {price_min} and translate(.//span/text(), '$', '') < {price_max}]" \
+        f"[.//span[contains(text(),'Free shipping') or " \
         f"translate(substring-before(., ' shipping'), '+$', '') " \
-        f"<= {ship_price_max}]) and (.//span[@class='s-item__time-left' " \
-        f"and substring-before(., 'd') > {bidding_min_days_left}])]" \
-        f"/preceding-sibling::a"
+        f"<= {ship_price_max}]][.//span[@class = 's-item__time-left' " \
+        f"and substring-before(., 'd') > {bidding_min_days_left}]]/preceding-sibling::a"
+
     filtered_items = ''
 
-    context.watch_links = collect_list_of_elements(
+    context.watch_links = _collect(
         context, xpath_links_for_filtered_items, filtered_items)
     if context.watch_links is None:
         context.scenario.skip(reason='No items found by with these filteres')
@@ -351,27 +302,27 @@ def save_screenshots(context):
 
 @given('Set up necessary data')
 def save_data(context):
-    context.xpath_search_field = "//input[@id = 'gh-ac']"
+    context.xpath_input_field = "//input[@id = 'gh-ac']"
     context.xpath_search_button = "//input[@id = 'gh-btn']"
 
 
 @when('Go back')
 def go_back(context):
     context.driver.back()
+    sleep(.2)
 
 
 @when('Find the first Recent searches element in suggested search')
 def find_suggested_one(context):
-    xpath_suggested_one = "(//li[contains(@class, 'ui-menu-item')]/a)[1]"
+    xpath_suggested_one = "//li[contains(@class, 'ui-menu-item')]/a[1]"
+    suggested_one = "suggested_one"
 
-    sleep(.4)
-    context.suggested_one = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.presence_of_element_located(
-            (By.XPATH, xpath_suggested_one)))
+    sleep(.2)
+    context.suggested_one = _presence(
+        context, xpath_suggested_one, suggested_one)
 
 
-@then('Verify that first "Recent searches" element == "{item_full_name}"')
+@then('Verify that first "Recent searches" element == {item_full_name}')
 def verify_suggested_recent(context, item_full_name):
     suggested_one_aria_label = \
         context.suggested_one.get_attribute("aria-label")
@@ -383,14 +334,14 @@ def verify_suggested_recent(context, item_full_name):
 # --- Verify image rendering, HTTP response, appearance on the page
 
 
-@given('A directory to create, "{item}"')
+@given('A directory to create, {item}')
 def save_data(context, item):
     context.dir = context.table[0]['directory']
     context.xpath_select_category = "//select[@id = '_in_kw']"
-    context.xpath_search_field = "//input[@id = '_nkw']"
+    context.xpath_input_field = "//input[@id = '_nkw']"
     context.xpath_search_button = \
-        "//button[.='Search' and following-sibling::span/@id = " \
-        "'searchBtnUpperNoScript']"
+        "//button[.='Search']" \
+        "[following-sibling::span/@id = 'searchBtnUpperNoScript']"
     context.xpath_header_one = "//h1[@class = 'rsHdr']"
     context.xpath_beautiful_thing_images = \
         "//img[ancestor::div[@id = 'vi_main_img_fs']]"
@@ -402,13 +353,13 @@ def save_data(context, item):
 def open_advanced(context):
     xpath_advanced_search = "//a[@id = 'gh-as-a']"
 
-    open_element(context, xpath_advanced_search)
+    _click(context, xpath_advanced_search)
 
 
-@when('Sort by central right "{option}"')
+@when('Sort by central right {option}')
 def sort_by_central_right_option(context, option):
     xpath_central_right_first_dropdown = \
-        "(//a[contains(@class, 'dropdown-toggle')])[1]"
+        "//a[contains(@class, 'dropdown-toggle')][1]"
     xpath_central_right_first_dropdown_option = \
         f"//a[text() = '{option}' and " \
         f"ancestor::ul/@id = 'SortMenu']"
@@ -419,26 +370,22 @@ def sort_by_central_right_option(context, option):
         (By.XPATH, xpath_central_right_first_dropdown)))
     actions = ActionChains(context.driver)
     actions.move_to_element(central_right_first_dropdown).perform()
-    central_right_first_dropdown_option = WebDriverWait(
-        context.driver, context.delay).until(
-        EC.element_to_be_clickable(
-            (By.XPATH, xpath_central_right_first_dropdown_option)))
-    central_right_first_dropdown_option.click()
+    _click(context, xpath_central_right_first_dropdown_option)
 
 
 @when('Open the first found item')
 def open_first_item(context):
-    xpath_very_beautiful_item = "(//img[@class = 'img'])[1]"
+    xpath_very_beautiful_item = "//img[@class = 'img'][1]"
 
-    open_element(context, xpath_very_beautiful_item)
+    _click(context, xpath_very_beautiful_item)
 
 
 @then('Collect the images of the item')
 def collect_images(context):
-    item_images = ''
+    all_item_images = 'all_item_images'
 
-    context.gorgeous_images = collect_list_of_elements(
-        context, context.xpath_beautiful_thing_images, item_images)
+    context.gorgeous_images = _collect(
+        context, context.xpath_beautiful_thing_images, all_item_images)
 
 
 @then('Verify the images are getting 200 HTTP response')
@@ -465,17 +412,17 @@ def verify_images_size(context):
 def open_image_gallery(context):
     xpath_image_area = "//img[@id='icImg']"
 
-    open_element(context, xpath_image_area)
+    _click(context, xpath_image_area)
 
 
 @when('Collect gallery images')
 def collect_gallery_images(context):
     xpath_gallery_images = \
         "//button[starts-with(@id, 'viEnlargeImgLayer_layer_fs_thImg')]"
-    gallery_images = ''
+    gallery_images = 'gallery_images'
 
     context.gorgeous_gallery_images = \
-        collect_list_of_elements(context, xpath_gallery_images, gallery_images)
+        _collect(context, xpath_gallery_images, gallery_images)
 
 
 @then('Verify the images are rendered and displayed')
@@ -484,20 +431,17 @@ def verify_images_displayed(context):
     xpath_gallery_central_image = "// img[@id = 'viEnlargeImgLayer_img_ctr']"
 
     for image in range(len(context.gorgeous_gallery_images) - 1):
-        gallery_central_image = WebDriverWait(
-            context.driver, context.delay).until(
-            EC.presence_of_element_located(
-                (By.XPATH, xpath_gallery_central_image)))
+        gallery_central_image = "gallery_central_image"
 
+        gallery_central_image = _presence(
+            context, xpath_gallery_central_image, gallery_central_image)
         styles = gallery_central_image.get_attribute("style").split()
-        size = styles[1].replace("px;", ""), styles[3].replace("px;", "")
-        all([int(float(i)) > 500 for i in size]) | should.be.equal.to(True)
+        width, height = styles[1].replace("px;", ""), styles[3].replace("px;", "")
 
-        gallery_right_arrow = WebDriverWait(
-            context.driver, context.delay).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, xpath_gallery_right_arrow)))
-        gallery_right_arrow.click()
+        assert int(float(width)) > 500 and int(float(height)) > 500, \
+            f"The size (width: {width}, height: {height}) of the image #{image} in the gallery is incorrect"
+
+        _click(context, xpath_gallery_right_arrow)
 
 
 @then('Verify the left arrow button of the gallery')
@@ -505,12 +449,7 @@ def verify_left_arrow(context):
     xpath_gallery_left_arrow = "//a[@title='To Previous Image']"
 
     for image in range(len(context.gorgeous_gallery_images) - 1):
-        gallery_left_arrow = WebDriverWait(
-            context.driver, context.delay).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, xpath_gallery_left_arrow)))
-        gallery_left_arrow.click()
-    sleep(2)  # Oh, this Mercedes
+        _click(context, xpath_gallery_left_arrow)
 
 
 # --- Verify navigation links redirection
@@ -525,10 +464,10 @@ def save_data(context):
 def open_link(context, link_name):
     context.key = link_name
     xpath_link = \
-        f"//a[parent::li/@class = 'hl-cat-nav__js-tab' " \
-        f"and text() = '{link_name}']"
+        f"//a[parent::li/@class = 'hl-cat-nav__js-tab']" \
+        f"[text() = '{link_name}']"
     try:
-        open_element(context, xpath_link)
+        _click(context, xpath_link)
     except TimeoutException:
         print(f"Cannot open navigation link {link_name}")
 
@@ -543,22 +482,17 @@ def verify_title(context):
 
 @given('Data for navigation')
 def save_data(context):
-    context.xpath_search_field = "//input[@id = 'gh-ac']"
+    context.xpath_input_field = "//input[@id = 'gh-ac']"
     context.xpath_search_button = "//input[@id = 'gh-btn']"
     context.xpath_header_one = "//h1[@class = 'srp-controls__count-heading']"
+    context.xpath_titles = "//h3[@class = 's-item__title']" \
+                           "[ancestor::div/@id = 'mainContent']"
 
 
 @when('Collect listing titles')
 def collect_titles(context):
-    xpath_titles = "//h3[@class = 's-item__title' " \
-                   "and ancestor::div/@id = 'mainContent']"
-    try:
-        context.titles = WebDriverWait(
-            context.driver, context.delay).until(
-            EC.presence_of_all_elements_located(
-                (By.XPATH, xpath_titles)))
-    except TimeoutException:
-        print(f"Cannot collect titles")
+    titles = "titles"
+    context.titles = _collect(context, context.xpath_titles, titles)
 
 
 @then('Calculate result match')
@@ -594,9 +528,11 @@ def test_verify_match(context, min_match_score, min_full_title_match_score):
 
 @given('Some data stored')
 def some_data(context):
-    context.xpath_search_field = "//input[@id = 'gh-ac']"
+    context.xpath_input_field = "//input[@id = 'gh-ac']"
     context.xpath_search_button = "//input[@id = 'gh-btn']"
     context.xpath_header_one = "//h1[@class = 'srp-controls__count-heading']"
+    context.xpath_titles = \
+        "//span[parent::h1[@class = 'srp-controls__count-heading']][2]"
 
 
 @then('Verify all listing titles contain the '
@@ -611,17 +547,142 @@ def verify_main_search(context, main_search, main_details):
         title_tokens = re.split(r"\s+|/|\(|\)|\+|\*|-",
                                 remove_special_chars.lower())
         match_tokens = re.split(r"\s+", main_search)
-        set_title = set(title_tokens)
-        set_match = set(match_tokens)
 
-        assert set_match & set_title, \
+        assert set(title_tokens) & set(match_tokens), \
             "Some titles don't match the main search"
+
+
+# --- Verify Advanced Search
+
+
+@given('Data stored for Advanced Search')
+def saved_data(context):
+    context.xpath_input_field = "//input[@name = '_nkw']"
+    context.xpath_search_button = "//button[@id = 'searchBtnLowerLnk']"
+    context.xpath_titles = "//a[parent::h3[@class = 'lvtitle']]"
+
+
+@when('In keywords options select {keyword_option}')
+def select_keywords_options(context, keyword_option):
+    xpath_keywords_options = "//select[@id = '_in_kw']"
+    print(keyword_option)
+    _select(context, xpath_keywords_options, keyword_option)
+
+
+@when('In Price put from {min_price} to {max_price}')
+def price_option(context, min_price, max_price):
+    xpath_min_price = "//input[@name = '_udlo']"
+    xpath_max_price = "//input[@name = '_udhi']"
+
+    _type(context, xpath_min_price, min_price)
+    _type(context, xpath_max_price, max_price)
+
+
+@when('Check {option}')
+def check_option(context, option):
+    xpath_checkbox = f"//input[starts-with(@id, 'LH')][@type = 'checkbox']" \
+                     f"[following-sibling::node()[normalize-space() = '{option}']]"
+
+    _click(context, xpath_checkbox)
+
+
+@when('In Location select {max_miles} miles of {index}')
+def price_option(context, max_miles, index):
+    xpath_located_max_miles = "//select[@id = '_sadis']"
+    xpath_located_index = "//input[@name = '_stpos']"
+    context.index = index
+
+    _select(context, xpath_located_max_miles, max_miles)
+    _type(context, xpath_located_index, index)
+
+
+@when('In Sort by select {sort_by_option}')
+def price_option(context, sort_by_option):
+    xpath_sort_by = "//select[@id='LH_SORT_BY']"
+
+    _select(context, xpath_sort_by, sort_by_option)
+
+
+@when('In View results select {sort_by_option}')
+def price_option(context, sort_by_option):
+    xpath_sort_by = "//select[@id='LH_VIEW_RESULTS_AS']"
+
+    _select(context, xpath_sort_by, sort_by_option)
+
+
+@when('In Results per page select {number_of_results}')
+def price_option(context, number_of_results):
+    xpath_sort_by = "//select[@id = 'LH_IPP']"
+
+    _select(context, xpath_sort_by, number_of_results)
+
+
+@then('Verfiy number of results is <= {number_results:d}')
+def verify_number(context, number_results):
+    xpath_listings = "//ul[@id='ListViewInner']/li"
+    listings = "listings"
+
+    listings = _collect(context, xpath_listings, listings)
+
+    assert len(listings) <= number_results, \
+        f"The number of listings on the page " \
+        f"should be {number_results} but {len(listings)} instead"
+
+
+@then('Verify listings sorted by Distance: nearest first and the index is correct')
+def verify_number(context):
+    xpath_distance = "//ul[contains(@class, 'lvdetails')]/li[1]"
+    ship_distance = "ship_distance"
+    dist = []
+
+    ship_distance = _collect(context, xpath_distance, ship_distance)
+    for item in ship_distance:
+        text_split = item.text.split()
+        if text_split[0] == "<":
+            n = text_split[1].replace(",", "")
+            dist.append(int(n))
+        else:
+            n = text_split[0].replace(",", "")
+            dist.append(int(n))
+        assert text_split[-1] == context.index, \
+            f"Index of users location should be {context.index} but {text_split[-1]} instead"
+
+    assert all(dist[i] <= dist[i + 1] for i in range(len(dist) - 1)), \
+        "The listings are not sorted by 'nearest first'"
+
+
+@then('Verify the price of the listing on the page is from 50 to 500')
+def verify_price(context):
+    xpath_items_price = "//span[parent::li[contains(@class, 'lvprice')]]"
+    prices = "prices"
+
+    prices = _collect(context, xpath_items_price, prices)
+    print(prices)
+    for price in prices:
+        price = price.text.replace("$", "")
+        if "to" in price:
+            price_from, price_to = price.split("to")
+            assert 50 < int(float(price_from)) < 500 or \
+                   50 < int(float(price_to)) < 500, \
+                   f"The price {price} is out of range"
+        else:
+            assert 50 < int(float(price)) < 500, \
+                f"The price {price} is out of range"
+
+
+@then('Verify that titles contain exact words grill and portable')
+def verify_words(context):
+    for title in context.titles:
+        text = title.text.lower().split()
+        words = ["grill", "portable"]
+        assert set(words) & set(text), \
+            f"Title {title} does not contain exact words"
 
 
 # Helper Functions
 
 
-def open_element(context, xpath):
+def _click(context, xpath):
     """Opens WebDriver element.
 
     Args:
@@ -634,9 +695,11 @@ def open_element(context, xpath):
         EC.element_to_be_clickable(
             (By.XPATH, xpath)))
     element.click()
+    sleep(.2)
+    return element
 
 
-def collect_list_of_elements(context, xpath, name):
+def _collect(context, xpath, name):
     """Collects WebDriver elements.
 
     Args:
@@ -650,7 +713,72 @@ def collect_list_of_elements(context, xpath, name):
             context.driver, context.delay).until(
             EC.presence_of_all_elements_located(
                 (By.XPATH, xpath)))
+        sleep(.2)
     except TimeoutException:
         print(f"Cannot collect {name}")
+    else:
+        return name
+
+
+def _type(context, xpath, text):
+    """Types text into input.
+
+    Args:
+        context (obj): Behave object
+        xpath (str): locator of the input field
+        text (str): text to type
+
+    """
+    search_input = WebDriverWait(
+        context.driver, context.delay).until(
+        EC.presence_of_element_located(
+            (By.XPATH, xpath)))
+    sleep(.2)
+    search_input.clear()
+    search_input.send_keys(text)
+    WebDriverWait(context.driver, context.delay).until(
+        lambda browser: search_input.get_attribute('value') == text)
+
+
+def _select(context, xpath, option):
+    """Selects an option.
+
+    Args:
+        context (obj): Behave object
+        xpath (str): locator of the select element
+        option (str): optio0n to choose
+
+    """
+    element = ''
+
+    try:
+        element = WebDriverWait(
+            context.driver, context.delay).until(
+            EC.presence_of_element_located(
+                (By.XPATH, xpath)))
+    except TimeoutException:
+        print(f"Cannot select {option} category")
+    finally:
+        select = Select(element)
+        select.select_by_visible_text(option)
+    sleep(.2)
+
+
+def _presence(context, xpath, name):
+    """Checks the presence of the WebDriver element.
+
+    Args:
+        context (obj): Behave object
+        xpath (str): locator of the element
+        name (str): name to give
+
+    """
+    try:
+        name = WebDriverWait(
+            context.driver, context.delay).until(
+            EC.presence_of_element_located(
+                (By.XPATH, xpath)))
+    except TimeoutException:
+        print(f"{name} element is not present on the page")
     else:
         return name
