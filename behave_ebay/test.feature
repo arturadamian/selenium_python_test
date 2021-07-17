@@ -1,39 +1,89 @@
 Feature: eBay Regression Testing
 
 
-  Scenario: Verify Advanced Search options
+  Background: Set up environment
+    Given Open eBay
+
+
+  Scenario: Hello world
+    When Type blabl$a in the s%earch field&&
+    When Print context
+
+
+  Scenario Outline: Verify result of the specific search on given pages
+    Given Main search field
+    When Type <keywords> in the search field
+    And Press search button
+    Then Verify correct search
+    Then Verify titles contain <keywords> on the pages from <current_page> to <page_number>
+
+    Examples:
+      | keywords  | page_number | current_page |
+      | Nike Zoom | 9           | 6            |
+      | Nike Zoom | 4           | 6            |
+
+
+  Scenario Outline: Verify result of the specific search on all pages
+    Given Main search field
+    When Type <keywords> in the search field
+    And Press search button
+    Then Verify correct search
+    Then Open All refinements
+    When In all refinements choose "Buying Format" <buying_format>
+    When In all refinements choose "Item Location" <item_location>
+    When In all refinements choose "Local Pickup" <local_pickup>
+    When In all refinements choose "US Shoe Size" <shoe_size>
+    And Press Apply Button
+    Then Collect pagination items
+    Then Verify all titles on all pages contain search <keywords>
+
+    Examples:
+      | keywords  | buying_format | item_location | local_pickup      | shoe_size              |
+      | Nike Zoom | Auction       | US Only       | Free Local Pickup | 6, 7, 8, 9, 10, 11, 12 |
+
+
+  Scenario Outline: Verify Advanced Search options
     Given Data stored for Advanced Search
     When Open Advanced search
-    And Type grill portable in the search field
+    And Type <keywords> in the search field
     And In keywords options select Exact words, any order
     And Check Title and description
-    And In Price put from 50 to 500
+    And In Price put from <min_price> to <max_price>
     And Check Buy It Now
     And Check Auction
     And Check New
     And Check Sale items
     And Check Free shipping
-    And In Location select 1000 miles of 94607
-    And In Sort by select Distance: nearest first
+    And In Location select <miles_away> of <index>
+    And In Sort by select <sorted_by>
     And In View results select All items
-    And In Results per page select 25
+    And In Results per page select <results_per_page>
     And Press search button
-    Then Verfiy number of results is <= 25
-    Then Verify listings sorted by Distance: nearest first and the index is correct
-    Then Verify the price of the listing on the page is from 50 to 500
+    Then Verfiy number <results_per_page>
+    Then Verify Distance: nearest first, <index>, not farther than <miles_away>
+    Then Verify the price of the listing on the page is from <min_price> to <max_price>
     When Collect listing titles
-    Then Verify that titles contain exact words grill and portable
+    Then Verify that titles contain exact words <keywords>
+    Then Verify Free shipping and Sale
+
+    Examples:
+      | min_price | max_price | miles_away | index | sorted_by               | results_per_page | keywords       |
+      | 50        | 500       | 1000       | 94607 | Distance: nearest first | 25               | grill portable |
 
 
   Scenario: Verify Hero carousel functionality
     Given Hero carousel slides are collected
-    Then Autoplay and verify carousel correct slide appearance
-    When Click carousel play/pause button and track slides
-    Then Verify carousel correct slide appearance
-    When Click carousel left button and track slides
-    Then Verify carousel correct slide appearance
-    When Click carousel right button and track slides
-    Then Verify carousel correct slide appearance
+    Then Verify carousel autoplay
+    When Carousel pause
+    Then Verify pause button
+    Then Verify correct slide appearance
+    When Carousel play
+    Then Verify play button
+    Then Verify correct slide appearance
+    When Carousel right
+    Then Verify correct slide appearance
+    When Carousel left
+    Then Verify correct slide appearance
 
 
   Scenario Outline: Add the first searched item to cart and verify that with it's title in mini cart
@@ -72,8 +122,9 @@ Feature: eBay Regression Testing
       | shoes men   | 19        | 0         | 5              | 2                     | Auction |
       | shoes women | 30        | 17        | 50             | 1                     | Auction |
 
+
   Scenario Outline: Verify Recent searches in suggested search menu
-    Given Set up necessary data
+    Given Main search field
     When Type <full_item> in the search field
     And Press search button
     And Go back
@@ -85,6 +136,7 @@ Feature: eBay Regression Testing
       | partial_item | full_item   |
       | shoe         | shoes women |
       | shoe         | shoes men   |
+
 
   Scenario Outline: Verify image rendering, HTTP response, appearance on the page
     Given A directory to create, <keywords>
@@ -131,7 +183,7 @@ Feature: eBay Regression Testing
 
 
   Scenario Outline: Search for a very specific item and verfify results
-    Given Data for navigation
+    Given Main search field
     When Type <keywords> in the search field
     When Press search button
     Then Verify correct search
@@ -144,14 +196,14 @@ Feature: eBay Regression Testing
       | green inflatable crocodile | 50              | 20                         |
 
 
-  Scenario Outline: Search for a specific item with details and verfify results
-    Given Some data stored
+  Scenario Outline: Search for a specific item with details and verify results
+    Given Main search field
     When Type <main_search> <main_details> <other_details> in the search field
     When Press search button
     Then Verify correct search
     When Collect listing titles
     Then Verify all listing titles contain the <main_search> with important <main_details>
-#    Then Verify most items contain "<other_details>"
+    Then Verify all items contain some of "<other_details>"
 
     Examples:
       | main_search   | main_details | other_details               |
