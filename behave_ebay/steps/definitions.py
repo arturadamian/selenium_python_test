@@ -11,6 +11,7 @@ from grappa import should
 from behave import when
 from behave import then
 from behave import given
+from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
@@ -33,13 +34,17 @@ def open_ebay(context):
     context.driver.get(context.ENVIRONMENT)
 
 
-# --- Hello world
+# --- Search correction
 
 
-@when('Print context')
-def print_cont(context):
-    import pprint
-    pprint.pprint(vars(context))
+@then('Verify rewritten search is {auto_correction}')
+def find_notice(context, auto_correction):
+    xpath_search_notice = \
+        "//div[contains(@class, 'srp-river-answer--REWRITE_START')]" \
+        "//span[@class = 'BOLD']"
+    assert context.wait.until(EC.text_to_be_present_in_element(
+        (By.XPATH, xpath_search_notice), auto_correction)), \
+        f"The search auto correction does not match. Expected: {auto_correction}"
 
 
 # --- Verify result of the specific search on given pages
@@ -95,17 +100,22 @@ def sort_by_category_and_option(context, category, options):
     description = f"All refiniments category {category}"
 
     _click(context, xpath_all_refinements_category, description)
-    if "," in options:
-        options = options.split(",")
-        for item in options:
-            item = item.strip()
-            description = \
-                f"All refiniments category {category} with option {item}"
-            xpath_all_refinements_options = \
-                f"//form[@id = 'x-overlay__form']" \
-                f"//*[contains(@class, 'x-refine__multi-select-cbx') " \
-                f"and text() = '{item}'][self::label or self::span]"
-            _click(context, xpath_all_refinements_options, description)
+    if "[" in options:
+        options = json.loads(options)
+        options = sorted(options)
+        description = \
+            f"All refiniments category {category} with option {options}"
+        xpath_all_refinements_options = \
+            f"//form[@id = 'x-overlay__form']" \
+            f"//span[contains(@class, 'x-refine__multi-select-cbx') and " \
+            f"text() < '{options[-1]}' and  text() > '{options[0]}']"
+        all_refinements_options = _collect(context, xpath_all_refinements_options, description)
+        for item in all_refinements_options:
+            size = item.text.split()[0]
+            if float(size) in options:
+                item.click()
+            else:
+                continue
     else:
         description = \
             f"All refiniments category {category} with option {options}"
@@ -128,9 +138,13 @@ def press_apply(context):
 @then('Collect pagination items')
 def collect_pagination(context):
     xpath_pagination = "//a[@class = 'pagination__item']"
-    description = "Pagination items"
 
-    context.pages = _collect(context, xpath_pagination, description)
+    try:
+        context.pages = WebDriverWait(context.driver, 3).until(
+            EC.presence_of_all_elements_located(
+                (By.XPATH, xpath_pagination)))
+    except TimeoutException:
+        context.pages = [1]
 
 
 @then('Verify all titles on all pages contain search {keywords}')
@@ -437,7 +451,7 @@ def select_category(context, category):
     _select(context, context.xpath_select_category, category)
 
 
-@when('Type {item} in the s%earch field&&')
+@when('Type {item} in the search field')
 def type_item(context, item):
     if not hasattr(context, 'item'):
         context.item = item.lower()
@@ -504,6 +518,7 @@ def open_element_in_new_tab(context):
 def get_title(context):
     description = "Title on the item's page"
 
+    sleep(.1)
     item_title = _present(
         context, context.xpath_item_title, description)
     context.item_title = item_title.text

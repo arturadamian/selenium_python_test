@@ -1,13 +1,22 @@
+@fixture.browser.chrome
 Feature: eBay Regression Testing
 
 
   Background: Set up environment
     Given Open eBay
+#
+#
+#  Scenario: Hello world
+#    Given Main search field
+#    When Type blabla in the search field
+#    When Print context
 
-
-  Scenario: Hello world
-    When Type blabl$a in the s%earch field&&
-    When Print context
+  Scenario: Search correction
+    Given Main search field
+    When Type por%able spea*er in the search field
+    And Press search button
+    Then Verify correct search
+    Then Verify rewritten search is portable speaker
 
 
   Scenario Outline: Verify result of the specific search on given pages
@@ -38,8 +47,8 @@ Feature: eBay Regression Testing
     Then Verify all titles on all pages contain search <keywords>
 
     Examples:
-      | keywords  | buying_format | item_location | local_pickup      | shoe_size              |
-      | Nike Zoom | Auction       | US Only       | Free Local Pickup | 6, 7, 8, 9, 10, 11, 12 |
+      | keywords  | buying_format | item_location | local_pickup      | shoe_size                  |
+      | Nike Zoom | Auction       | US Only       | Free Local Pickup | [10, 7, 12, 9, 6, 11.5, 8] |
 
 
   Scenario Outline: Verify Advanced Search options
@@ -119,8 +128,8 @@ Feature: eBay Regression Testing
 
     Examples:
       | item        | price_max | price_min | ship_price_max | bidding_min_days_left | option  |
-      | shoes men   | 19        | 0         | 5              | 2                     | Auction |
-      | shoes women | 30        | 17        | 50             | 1                     | Auction |
+      | shoes men   | 9        | 0         | 5              | 2                     | Auction |
+#      | shoes women | 30        | 17        | 50             | 1                     | Auction |
 
 
   Scenario Outline: Verify Recent searches in suggested search menu
