@@ -1,17 +1,40 @@
-@fixture.browser.chrome
 Feature: eBay Regression Testing
 
 
   Background: Set up environment
     Given Open eBay
-#
-#
-#  Scenario: Hello world
-#    Given Main search field
-#    When Type blabla in the search field
-#    When Print context
 
-  Scenario: Search correction
+
+  @fixture.browser.chrome
+  Scenario: Verify filteres in description of the item
+    Given And Main
+    When In the search field we type shoes woman
+    And Click search_button
+    And Click more_filters
+    And Choose filter "US Shoe Size" "8"
+    And Choose filter "Brand" "Nike"
+    And Choose filter "Upper Material" "Cotton"
+    When Click apply_button
+    Then Collect item links
+    Then Verify item's description contains "filter" and "option"
+
+
+  @fixture.browser.chrome
+  Scenario Outline: Duplicates within search with different sessions
+    Given Main search field
+    When Type <keywords> in the search field
+    And Press search button
+    Then Store records from the page
+    Then Verify records are identical from exact same search
+
+    Examples:
+      | keywords                  |
+      | christian louboutin black |
+      | christian louboutin black |
+
+
+  @fixture.browser.chrome
+  Scenario: Verify search auto correction
     Given Main search field
     When Type por%able spea*er in the search field
     And Press search button
@@ -19,6 +42,16 @@ Feature: eBay Regression Testing
     Then Verify rewritten search is portable speaker
 
 
+  @fixture.browser.chrome
+  Scenario: Verify average rating correlates with rating stars in listings
+    Given Main search field
+    When Type portable speaker in the search field
+    And Press search button
+    When Find items with rating >= "4" stars and discount >= "40"%
+    Then Verify the average rating >= "4" and discount >= "40"%
+
+
+  @fixture.browser.chrome
   Scenario Outline: Verify result of the specific search on given pages
     Given Main search field
     When Type <keywords> in the search field
@@ -32,6 +65,7 @@ Feature: eBay Regression Testing
       | Nike Zoom | 4           | 6            |
 
 
+  @fixture.browser.chrome
   Scenario Outline: Verify result of the specific search on all pages
     Given Main search field
     When Type <keywords> in the search field
@@ -51,6 +85,7 @@ Feature: eBay Regression Testing
       | Nike Zoom | Auction       | US Only       | Free Local Pickup | [10, 7, 12, 9, 6, 11.5, 8] |
 
 
+  @fixture.browser.chrome
   Scenario Outline: Verify Advanced Search options
     Given Data stored for Advanced Search
     When Open Advanced search
@@ -80,6 +115,7 @@ Feature: eBay Regression Testing
       | 50        | 500       | 1000       | 94607 | Distance: nearest first | 25               | grill portable |
 
 
+  @fixture.browser.chrome
   Scenario: Verify Hero carousel functionality
     Given Hero carousel slides are collected
     Then Verify carousel autoplay
@@ -95,6 +131,7 @@ Feature: eBay Regression Testing
     Then Verify correct slide appearance
 
 
+  @fixture.browser.chrome
   Scenario Outline: Add the first searched item to cart and verify that with it's title in mini cart
     Given Saved data
     When Select <category>
@@ -104,6 +141,7 @@ Feature: eBay Regression Testing
     When Open element in a new tab
     Then Get the title of the item
     Then Add the item to cart if there is an option
+    Then Close the second tab
     When Hover over cart
     Then Verify the title of the item in mini cart
 
@@ -113,6 +151,7 @@ Feature: eBay Regression Testing
       | Books    | Python |
 
 
+  @fixture.browser.chrome
   Scenario Outline: Search specific items on auction and save pictures of them in a created directory
     Given Save directory to create, <item>
       """
@@ -128,10 +167,11 @@ Feature: eBay Regression Testing
 
     Examples:
       | item        | price_max | price_min | ship_price_max | bidding_min_days_left | option  |
-      | shoes men   | 9        | 0         | 5              | 2                     | Auction |
-#      | shoes women | 30        | 17        | 50             | 1                     | Auction |
+      | shoes men   | 9         | 0         | 5              | 2                     | Auction |
+      | shoes women | 30        | 17        | 50             | 1                     | Auction |
 
 
+  @fixture.browser.chrome
   Scenario Outline: Verify Recent searches in suggested search menu
     Given Main search field
     When Type <full_item> in the search field
@@ -146,7 +186,7 @@ Feature: eBay Regression Testing
       | shoe         | shoes women |
       | shoe         | shoes men   |
 
-
+  @fixture.browser.chrome
   Scenario Outline: Verify image rendering, HTTP response, appearance on the page
     Given A directory to create, <keywords>
       | directory |
@@ -170,7 +210,7 @@ Feature: eBay Regression Testing
       | keyword_options        | keywords                    | option               |
       | Exact words, any order | 1969 Mercedes-Benz SL-Class | Price: highest first |
 
-
+  @fixture.browser.chrome
   Scenario: Verify navigation links redirection
     Given Links -> Titles to verify
       """
@@ -190,7 +230,7 @@ Feature: eBay Regression Testing
     When Open navigation link Deals
     Then Verify correct redirection with title
 
-
+  @fixture.browser.chrome
   Scenario Outline: Search for a very specific item and verfify results
     Given Main search field
     When Type <keywords> in the search field
@@ -205,6 +245,7 @@ Feature: eBay Regression Testing
       | green inflatable crocodile | 50              | 20                         |
 
 
+  @fixture.browser.chrome
   Scenario Outline: Search for a specific item with details and verify results
     Given Main search field
     When Type <main_search> <main_details> <other_details> in the search field

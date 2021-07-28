@@ -11,6 +11,7 @@ from grappa import should
 from behave import when
 from behave import then
 from behave import given
+from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -25,8 +26,8 @@ from selenium.common.exceptions import MoveTargetOutOfBoundsException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 
-
 # --- Set up environment
+driver = webdriver.Chrome()
 
 
 @given('Open eBay')
@@ -34,7 +35,167 @@ def open_ebay(context):
     context.driver.get(context.ENVIRONMENT)
 
 
-# --- Search correction
+# --- Verify filteres in description of the item
+
+@given("And Main")
+def main(context):
+    context.x_apply_button = \
+        "//button[contains(@class, 'x-overlay-footer__apply-btn')]"
+    context.x_search_button = "//input[@id = 'gh-btn']"
+    context.x_more_filters = \
+        "//li[@class = 'x-refine__main__list--more']//button"
+    context.filters = []
+
+
+@when('In the search field we type {item}')
+def step_impl(context, item):
+    id_search = "gh-ac"
+
+    search = context.wait.until(
+        EC.presence_of_element_located((By.ID, id_search)))
+    search.clear()
+    search.send_keys(item)
+    context.wait.until(lambda x: search.get_attribute("value") == item)
+
+
+@when('Click {button}')
+def step(context, button):
+    x = f"context.x_{button}"
+
+    context.wait.until(
+        EC.element_to_be_clickable((By.XPATH, eval(x)))).click()
+
+
+@when(u'Choose filter "{filters}" "{option}"')
+def step_impl(context, filters, option):
+    x_filter = \
+        f"//span[@class = 'x-overlay-aspect__label'][text() = '{filters}']"
+    x_option = f"//span[contains(@class, 'x-refine__multi-select-cbx')]" \
+               f"[ancestor::form[@id='x-overlay__form']][text() = '{option}']"
+
+    context.filters.append({filters: option})
+
+    context.wait.until(
+        EC.element_to_be_clickable((By.XPATH, x_filter))).click()
+    try:
+        context.wait.until(
+            EC.element_to_be_clickable((By.XPATH, x_option))).click()
+    except TimeoutException:
+        pass
+
+
+@then(u'Collect item links')
+def step_impl(context):
+    x_links = "//div[contains(@class, 's-item__info')]" \
+              "[ancestor::ul[contains(@class, 'srp-results')]]" \
+              "[.//span[@class = 's-item__price' " \
+              "and translate(text(), '$', '') < 20]]/a"
+
+    context.wait.until(
+        lambda x: context.driver.execute_script(
+            "return document.readyState") == 'complete')
+    last_link = context.wait.until(EC.presence_of_element_located(
+        (By.XPATH, "//div[contains(@class, 's-item__inf')]"
+                   "[ancestor::ul[contains(@class, 'srp-results')]][last()]")))
+    context.wait.until_not(EC.staleness_of(last_link))
+    sleep(.5)
+    links = context.wait.until(
+        EC.presence_of_all_elements_located((By.XPATH, x_links)))
+    context.urls = []
+    for link in links:
+        link_url = link.get_attribute("href")
+        context.urls.append(link_url)
+
+
+@then(u'Verify item\'s description contains "filter" and "option"')
+def step_impl(context):
+    x_label = "//td[@class='attrLabels']"
+    x_value = "//td[@class='attrLabels']/following-sibling::td//span"
+    mismatch = []
+    for url in context.urls:
+        window_before = context.driver.current_window_handle
+        context.driver.execute_script(f"window.open(\"{url}\");")
+        context.wait.until(EC.number_of_windows_to_be(2))
+        window_after = context.driver.window_handles[-1]
+        context.driver.switch_to_window(window_after)
+
+        labels = context.wait.until(
+            EC.presence_of_all_elements_located((By.XPATH, x_label)))
+        values_text, label_text = [], []
+        for label in labels:
+            value = \
+                label.find_element_by_xpath("./following-sibling::td//span")
+            label_text.append(label.text.strip(":"))
+            values_text.append(value.text)
+        description_dict = dict(zip(label_text, values_text))
+
+        for _filter in context.filters:
+            key = list(_filter.keys())[0]
+            val = list(_filter.values())[0]
+
+            if key not in description_dict:
+                print(key + " not in keys of " + str(description_dict.keys()))
+                mismatch.append(
+                    f"{key} is not in the description of the item keys")
+            elif val not in description_dict[key]:
+                print(val + " not in values of " + description_dict[key])
+                mismatch.append(
+                    f"{val} is not in the description of the item values")
+
+        context.driver.close()
+        context.driver.switch_to_window(window_before)
+
+
+# --- Duplicates within search with different sessions
+
+
+@then('Store records from the page')
+def store_records(context):
+    page_records = []
+    xpath_items = "//li[contains(@class, 's-item ')]"
+    xpath_info = ".//span[@class='SECONDARY_INFO']"
+    xpath_price = ".//span[@class = 's-item__price'][1]"
+    xpath_shipping = ".//span[contains(@class, 's-item__logisticsCost')]"
+    xpath_title = ".//a/h3"
+
+    sleep(2)
+    items = _collect(context, xpath_items, description="Found items")
+    for count, item in enumerate(items):
+        title = found_or_none(item, xpath_title)
+        info = found_or_none(item, xpath_info)
+        price = found_or_none(item, xpath_price)
+        shipping = found_or_none(item, xpath_shipping)
+        item_d = {}
+        item_d.update(
+            {"title": title,
+             "info": info,
+             "price": price,
+             "shipping": shipping})
+        page_records.append(item_d)
+
+    key = "original" if not context.feature.records else "duplicate"
+    context.feature.records[key] = page_records
+    print(context.feature.records[key])
+
+
+def found_or_none(item, xpath):
+    try:
+        el = item.find_element_by_xpath(xpath).text
+    except NoSuchElementException:
+        el = None
+    return el
+
+
+@then('Verify records are identical from exact same search')
+def verify_records(context):
+    if len(context.feature.records) == 2:
+        assert \
+            context.feature.records["original"] == \
+            context.feature.records["duplicate"], \
+            "Two exsact same search give diff results"
+
+
+# --- Verify search auto correction
 
 
 @then('Verify rewritten search is {auto_correction}')
@@ -44,7 +205,65 @@ def find_notice(context, auto_correction):
         "//span[@class = 'BOLD']"
     assert context.wait.until(EC.text_to_be_present_in_element(
         (By.XPATH, xpath_search_notice), auto_correction)), \
-        f"The search auto correction does not match. Expected: {auto_correction}"
+        f"The search auto correction does not match. " \
+        f"Expected: {auto_correction}"
+
+
+# --- Verify average rating correlates with rating stars in listings
+
+
+@when('Find items with rating >= "{stars:d}" '
+      'stars and discount >= "{sale:d}"%')
+def find_items(context, stars, sale):
+    context.xpath_items_by_rating_and_sale = \
+        f"//div[contains(@class, 's-item__info ')]" \
+        f"[.//div[@class = 'x-star-rating']//span[@class = 'clipped']" \
+        f"[substring-before(./text(), ' ') >= {stars} ]]" \
+        f"[.//span[contains(@class, 's-item__discount')]" \
+        f"[./span[translate(text(), '% off', '') >= {sale} ]]]"
+    description = "Items filtered by rating and sale"
+    context.items_by_rating_and_sale = \
+        _collect(
+            context, context.xpath_items_by_rating_and_sale, description)
+
+
+@then('Verify the average rating >= "{stars:d}" and discount >= "{sale:d}"%')
+def verify_rating_sale(context, stars, sale):
+    xpath_average_rating = \
+        "//span[@class = 'review--start--rating']" \
+        "[ancestor::div[contains(@class, 'rating--details')]]"
+    xpath_sale = "//span[@id='vi-discountValue']"
+
+    mismatch_rating, mismatch_sale = [], []
+    for item in context.items_by_rating_and_sale:
+        rating_link = item.find_element_by_xpath(
+            ".//span[@class = 's-item__reviews-count']")
+        context.xpath_el_new_tab = rating_link
+        context.execute_steps("When Open element in a new tab")
+        average_rating = \
+            _present(context, xpath_average_rating,
+                     description="Average rating").text
+        if round(float(average_rating)) < stars:
+            mismatch_rating.append(average_rating)
+        context.execute_steps("Then Close the second tab")
+        title_link = item.find_element_by_xpath(
+            context.xpath_items_by_rating_and_sale + "//a/h3")
+        context.xpath_el_new_tab = title_link
+        context.execute_steps("When Open element in a new tab")
+        item_page_sale = _present(
+            context, xpath_sale, description="Sale percent").text
+        if int(item_page_sale) < sale:
+            mismatch_sale.append(item_page_sale)
+        context.execute_steps("Then Close the second tab")
+
+    if mismatch_rating:
+        raise AssertionError(f"Some item's stars are not equivalent "
+                             f"the average rating: {mismatch_rating}")
+    if mismatch_sale:
+        raise AssertionError(
+            f"The discount shown in listings differs from discount "
+            f"shown on item's page. Expacted: "
+            f"{sale} and greater. Actual: {mismatch_sale}")
 
 
 # --- Verify result of the specific search on given pages
@@ -52,7 +271,8 @@ def find_notice(context, auto_correction):
 
 @then('Verify titles contain {keywords} on the pages '
       'from {current_page:d} to {page_number:d}')
-def verify_titles_on_given_pages(context, keywords, current_page, page_number):
+def verify_titles_on_given_pages(
+        context, keywords, current_page, page_number):
     xpath_current_page = \
         f"//a[@class = 'pagination__item' and text() = '{current_page}']"
     description = f"Page number {page_number}"
@@ -93,7 +313,6 @@ def all_refinements(context):
 
 @when('In all refinements choose "{category}" {options}')
 def sort_by_category_and_option(context, category, options):
-
     xpath_all_refinements_category = \
         f"//div[contains(@class, 'x-overlay-aspect') " \
         f"and ./span[text() = '{category}']]"
@@ -109,7 +328,8 @@ def sort_by_category_and_option(context, category, options):
             f"//form[@id = 'x-overlay__form']" \
             f"//span[contains(@class, 'x-refine__multi-select-cbx') and " \
             f"text() < '{options[-1]}' and  text() > '{options[0]}']"
-        all_refinements_options = _collect(context, xpath_all_refinements_options, description)
+        all_refinements_options = \
+            _collect(context, xpath_all_refinements_options, description)
         for item in all_refinements_options:
             size = item.text.split()[0]
             if float(size) in options:
@@ -472,6 +692,7 @@ def find_first_item(context):
         "[.//span/text() = 'Buy It Now']/a)[1]"
     description = "First item with Buy It Now option"
 
+    sleep(.2)
     context.xpath_el_new_tab = \
         _present(
             context, xpath_first_item_with_buy_option, description)
@@ -508,8 +729,8 @@ def open_element_in_new_tab(context):
             EC.number_of_windows_to_be(2))
         window_after = context.driver.window_handles[1]
         context.driver.switch_to_window(window_after)
-    except TimeoutException as e:
-        raise NoSuchWindowException(err_msg_no_window) from e
+    except TimeoutException:
+        raise NoSuchWindowException(err_msg_no_window)
     except InvalidSwitchToTargetException(err_msg_switch):
         raise
 
@@ -534,6 +755,10 @@ def add_to_cart(context):
     context.wait.until(
         EC.visibility_of_element_located(
             (By.XPATH, xpath_item_added_modal)))
+
+
+@then('Close the second tab')
+def close_second_tab(context):
     sleep(.2)
     context.driver.close()
     context.driver.switch_to.window(context.window_before)
@@ -595,14 +820,14 @@ def sort_listings_by_central_left_option(context, option):
 def collect_filter_items(context, price_max, price_min,
                          ship_price_max, bidding_min_days_left):
     xpath_links_for_filtered_items = \
-        f"//div[contains(@class, 's-item__details')]" \
-        f"[translate(.//span/text(), '$', '') > {price_min} and " \
-        f"translate(.//span/text(), '$', '') < {price_max}]" \
-        f"[.//span[contains(text(),'Free shipping') or " \
-        f"translate(substring-before(., ' shipping'), '+$', '') <= " \
-        f"{ship_price_max}]][.//span[@class = 's-item__time-left' and " \
-        f"substring-before(., 'd') > {bidding_min_days_left}]]" \
-        f"/preceding-sibling::a"
+        "//div[contains(@class, 's-item__details')]" \
+        "[translate(.//span/text(), '$', '') > {price_min} and " \
+        "translate(.//span/text(), '$', '') < {price_max}]" \
+        "[.//span[contains(text(),'Free shipping') or " \
+        "translate(substring-before(., ' shipping'), '+$', '') " \
+        "<= {ship_price_max}]][.//span[@class = 's-item__time-left' " \
+        "and substring-before(., 'd') > {bidding_min_days_left}]]" \
+        "/preceding-sibling::a"
     description = f"Filtered {context.item} collection"
 
     context.watch_links = _collect(
@@ -620,11 +845,10 @@ def create_dir(context):
 def save_screenshots(context):
     for count, watch_link in enumerate(context.watch_links):
         context.xpath_el_new_tab = watch_link
-        open_element_in_new_tab(context)
+        context.execute_steps("When Open element in a new tab")
         context.driver.save_screenshot(
             f"./{context.dir}/selected_item_picture_{count}.png")
-        context.driver.close()
-        context.driver.switch_to.window(context.window_before)
+        context.execute_steps("Then Close the second tab")
 
 
 # --- Verify Recent searches in suggested search menu
@@ -702,7 +926,7 @@ def sort_by_central_right_option(context, option):
     description = f"Central right sort dropdown"
 
     _move(context, xpath_central_right_first_dropdown, description)
-    _click(context,xpath_central_right_first_dropdown_option,
+    _click(context, xpath_central_right_first_dropdown_option,
            description + f": {option}")
 
 
@@ -750,7 +974,8 @@ def verify_images_size(context):
 
     if mismatch_img_byte:
         raise ValueError(
-            f"Some images stored in bytes are not opening: {mismatch_img_byte}")
+            f"Some images stored in bytes are not opening: "
+            f"{mismatch_img_byte}")
 
     assert 0 not in img.size, f"Oops - {img_name} size is zero"
 
@@ -927,9 +1152,9 @@ def _click(context, xpath, description):
     try:
         element = context.wait.until(
             EC.element_to_be_clickable((By.XPATH, xpath)))
-    except TimeoutException as e:
+    except TimeoutException:
         err_msg = f"{description} element is not clickable"
-        raise NoSuchElementException(err_msg) from e
+        raise NoSuchElementException(err_msg)
     else:
         err_msg = f"Cannot click on the element {description}"
         try:
@@ -953,9 +1178,9 @@ def _collect(context, xpath, description):
         element = context.wait.until(
             EC.presence_of_all_elements_located((By.XPATH, xpath)))
         sleep(.2)
-    except TimeoutException as e:
+    except TimeoutException:
         err_msg = f"{description} element is not present on the page"
-        raise NoSuchElementException(err_msg) from e
+        raise NoSuchElementException(err_msg)
     else:
         return element
 
@@ -977,6 +1202,7 @@ def _type(context, xpath, text):
     search_input.send_keys(text)
     context.wait.until(
         lambda browser: search_input.get_attribute('value') == text)
+    sleep(.2)
 
 
 def _select(context, xpath, option):
@@ -1011,9 +1237,9 @@ def _present(context, xpath, description):
     try:
         element = context.wait.until(
             EC.presence_of_element_located((By.XPATH, xpath)))
-    except TimeoutException as e:
+    except TimeoutException:
         err_msg = f"{description} element is not _present on the page"
-        raise NoSuchElementException(err_msg) from e
+        raise NoSuchElementException(err_msg)
     else:
         return element
 
